@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MDT — Law Enforcement Terminal</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen">
+  <div class="scan-line"></div>
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="badge-icon">⚖</div>
+      <div class="login-title">ARKANSAS STATE MDT SYSTEM</div>
+      <div class="login-subtitle">MOBILE DATA TERMINAL — SECURE ACCESS</div>
+      <div class="login-divider"></div>
+    </div>
+    <div class="login-form">
+      <div class="form-group">
+        <label>OFFICER ID / BADGE NUMBER</label>
+        <input type="text" id="loginUser" placeholder="Enter Badge Number" autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <label>ACCESS CODE</label>
+        <input type="password" id="loginPass" placeholder="Enter Access Code" />
+      </div>
+      <div id="loginError" class="login-error hidden">⚠ INVALID CREDENTIALS — ACCESS DENIED</div>
+      <button class="btn-primary" onclick="doLogin()">AUTHENTICATE</button>
+      <div class="login-hint">Default: <span>H-21</span> / <span>1234</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN MDT -->
+<div id="mdt" class="mdt hidden">
+
+  <header class="top-bar">
+    <div class="top-left">
+      <span class="mdt-badge">⚖</span>
+      <div>
+        <div class="mdt-title">ARKANSAS STATE MDT</div>
+        <div class="mdt-sub">SECURE TERMINAL v4.2.1 — ENCRYPTED</div>
+      </div>
+    </div>
+    <div class="top-center">
+      <div class="clock-block">
+        <div id="clock" class="clock">00:00:00</div>
+        <div id="dateline" class="dateline">SATURDAY</div>
+      </div>
+    </div>
+    <div class="top-right">
+      <div class="officer-info">
+        <div class="officer-label">LOGGED IN AS</div>
+        <div id="officerName" class="officer-name">--</div>
+      </div>
+      <div class="status-selector">
+        <label>UNIT STATUS</label>
+        <select id="unitStatus" onchange="updateStatus()">
+          <option value="available">10-8 AVAILABLE</option>
+          <option value="busy">10-6 BUSY</option>
+          <option value="enroute">10-76 EN ROUTE</option>
+          <option value="traffic">10-24 TRAFFIC STOP</option>
+          <option value="scene">10-23 AT SCENE</option>
+          <option value="offduty">10-7 OFF DUTY</option>
+        </select>
+      </div>
+      <button class="btn-logout" onclick="logout()">LOG OUT</button>
+    </div>
+  </header>
+
+  <nav class="nav-tabs">
+    <button class="tab-btn active" onclick="switchTab('search')" id="tab-search"><span>🔍</span> SEARCH</button>
+    <button class="tab-btn" onclick="switchTab('records')" id="tab-records"><span>📋</span> RECORDS</button>
+    <button class="tab-btn" onclick="switchTab('calls')" id="tab-calls"><span>📡</span> CALL LOG</button>
+    <button class="tab-btn" onclick="switchTab('reports')" id="tab-reports"><span>📝</span> REPORTS</button>
+    <button class="tab-btn" onclick="switchTab('citations')" id="tab-citations"><span>🎫</span> CITATIONS</button>
+    <button class="tab-btn" onclick="switchTab('warrants')" id="tab-warrants"><span>⚠</span> WARRANTS</button>
+    <button class="tab-btn" onclick="switchTab('bolo')" id="tab-bolo"><span>🚨</span> BOLO</button>
+  </nav>
+
+  <main class="main-content">
+
+    <!-- SEARCH TAB -->
+    <section id="panel-search" class="panel active">
+      <div class="panel-grid">
+        <div class="panel-left">
+          <div class="card">
+            <div class="card-header">🔍 DATABASE SEARCH</div>
+            <div class="search-tabs">
+              <button class="stab active" onclick="switchSearchTab('person')" id="stab-person">PERSON</button>
+              <button class="stab" onclick="switchSearchTab('plate')" id="stab-plate">LICENSE PLATE</button>
+            </div>
+            <div id="search-person" class="search-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>FIRST NAME</label>
+                  <input type="text" id="searchFirst" placeholder="First Name" />
+                </div>
+                <div class="form-group">
+                  <label>LAST NAME</label>
+                  <input type="text" id="searchLast" placeholder="Last Name" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label>DATE OF BIRTH (optional)</label>
+                <input type="text" id="searchDOB" placeholder="MM/DD/YYYY" />
+              </div>
+              <button class="btn-primary" onclick="searchPerson()">RUN QUERY</button>
+            </div>
+            <div id="search-plate" class="search-form hidden">
+              <div class="form-group">
+                <label>LICENSE PLATE NUMBER</label>
+                <input type="text" id="searchPlate" placeholder="e.g. ABC-1234" style="text-transform:uppercase" />
+              </div>
+              <button class="btn-primary" onclick="searchPlate()">RUN PLATE</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">🕐 RECENT QUERIES</div>
+            <div id="recentSearches" class="recent-list">
+              <div class="empty-state">No recent queries</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-right">
+          <div id="searchResults" class="card hidden">
+            <div class="card-header">📋 SEARCH RESULTS</div>
+            <div id="resultsList"></div>
+          </div>
+          <div id="profileView" class="card hidden">
+            <div class="card-header profile-header">
+              <span>👤 SUBJECT PROFILE</span>
+              <div>
+                <button class="btn-sm btn-warn" onclick="editRecord()">✏ EDIT</button>
+                <button class="btn-sm btn-danger" onclick="deleteRecord()">🗑 DELETE</button>
+              </div>
+            </div>
+            <div id="profileContent"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RECORDS TAB -->
+    <section id="panel-records" class="panel">
+      <div class="panel-grid">
+        <div class="panel-left">
+          <div class="card">
+            <div class="card-header" id="recordFormHeader">➕ NEW CIVILIAN RECORD</div>
+            <input type="hidden" id="editId" value="" />
+            <div class="form-row">
+              <div class="form-group">
+                <label>FIRST NAME *</label>
+                <input type="text" id="rFirst" placeholder="First Name" />
+              </div>
+              <div class="form-group">
+                <label>LAST NAME *</label>
+                <input type="text" id="rLast" placeholder="Last Name" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>DATE OF BIRTH *</label>
+                <input type="text" id="rDOB" placeholder="MM/DD/YYYY" />
+              </div>
+              <div class="form-group">
+                <label>GENDER</label>
+                <select id="rGender">
+                  <option>MALE</option><option>FEMALE</option><option>OTHER</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>ADDRESS</label>
+              <input type="text" id="rAddress" placeholder="Street, City, State, ZIP" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>LICENSE PLATE</label>
+                <input type="text" id="rPlate" placeholder="ABC-1234" style="text-transform:uppercase" />
+              </div>
+              <div class="form-group">
+                <label>LICENSE STATUS</label>
+                <select id="rLicenseStatus">
+                  <option>VALID</option><option>SUSPENDED</option>
+                  <option>REVOKED</option><option>EXPIRED</option><option>NO LICENSE</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>VEHICLE MAKE / MODEL</label>
+                <input type="text" id="rVehicle" placeholder="e.g. 2019 Ford F-150" />
+              </div>
+              <div class="form-group">
+                <label>VEHICLE COLOR</label>
+                <input type="text" id="rVehicleColor" placeholder="e.g. Black" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>KNOWN ASSOCIATES</label>
+              <input type="text" id="rAssociates" placeholder="Names of known associates" />
+            </div>
+            <div class="form-group">
+              <label>WARRANT STATUS</label>
+              <select id="rWarrantStatus" onchange="toggleWarrantDesc()">
+                <option value="none">NONE</option>
+                <option value="active">ACTIVE WARRANT</option>
+                <option value="felony">FELONY WARRANT</option>
+                <option value="misdemeanor">MISDEMEANOR WARRANT</option>
+              </select>
+            </div>
+            <div class="form-group" id="warrantDescGroup" style="display:none">
+              <label>WARRANT DESCRIPTION</label>
+              <textarea id="rWarrantDesc" placeholder="Describe the warrant..." rows="2"></textarea>
+            </div>
+            <div class="form-group">
+              <label>OFFICER NOTES / PRIORS</label>
+              <textarea id="rNotes" placeholder="Additional notes, priors, caution flags..." rows="3"></textarea>
+            </div>
+            <div class="form-row">
+              <button class="btn-primary" onclick="saveRecord()">SUBMIT RECORD</button>
+              <button class="btn-secondary" onclick="clearRecordForm()">CLEAR</button>
+            </div>
+          </div>
+        </div>
+        <div class="panel-right">
+          <div class="card">
+            <div class="card-header">📋 ALL RECORDS <span id="recordCount" class="badge">0</span></div>
+            <div class="search-inline">
+              <input type="text" id="recordsFilter" placeholder="Filter by name or plate..." oninput="filterRecords()" />
+            </div>
+            <div id="allRecordsList" class="records-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CALLS TAB -->
+    <section id="panel-calls" class="panel">
+      <div class="panel-grid">
+        <div class="panel-left">
+          <div class="card">
+            <div class="card-header">📡 NEW CALL LOG ENTRY</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>CALL TYPE</label>
+                <select id="callType">
+                  <option>10-11 Animal Call</option>
+                  <option>10-15 Civil Disturbance</option>
+                  <option>10-16 Domestic Disturbance</option>
+                  <option>10-31 Crime in Progress</option>
+                  <option>10-33 Emergency</option>
+                  <option>10-35 Major Crime Alert</option>
+                  <option>10-38 Traffic Stop</option>
+                  <option>10-50 Traffic Accident</option>
+                  <option>10-54 Possible Dead Body</option>
+                  <option>10-66 Suspicious Person</option>
+                  <option>Robbery</option>
+                  <option>Burglary</option>
+                  <option>Assault</option>
+                  <option>Shots Fired</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>PRIORITY</label>
+                <select id="callPriority">
+                  <option value="1">P1 — EMERGENCY</option>
+                  <option value="2">P2 — URGENT</option>
+                  <option value="3">P3 — ROUTINE</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>LOCATION / ADDRESS</label>
+              <input type="text" id="callLocation" placeholder="Street address or intersection" />
+            </div>
+            <div class="form-group">
+              <label>DESCRIPTION</label>
+              <textarea id="callDesc" placeholder="Describe the call..." rows="3"></textarea>
+            </div>
+            <div class="form-group">
+              <label>UNIT(S) ASSIGNED</label>
+              <input type="text" id="callUnits" placeholder="e.g. UNIT-21, UNIT-14" />
+            </div>
+            <button class="btn-primary" onclick="addCall()">LOG CALL</button>
+          </div>
+        </div>
+        <div class="panel-right">
+          <div class="card">
+            <div class="card-header">📡 ACTIVE &amp; RECENT CALLS</div>
+            <div id="callsList" class="calls-list">
+              <div class="empty-state">No calls logged</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPORTS TAB -->
+    <section id="panel-reports" class="panel">
+      <div class="panel-grid">
+        <div class="panel-left">
+          <div class="card">
+            <div class="card-header">📝 NEW INCIDENT REPORT</div>
+            <div class="form-group">
+              <label>REPORT TYPE</label>
+              <select id="reportType">
+                <option>INCIDENT REPORT</option>
+                <option>ARREST REPORT</option>
+                <option>USE OF FORCE REPORT</option>
+                <option>TRAFFIC ACCIDENT REPORT</option>
+                <option>FIELD INTERVIEW REPORT</option>
+                <option>PROPERTY DAMAGE REPORT</option>
+                <option>MISSING PERSON REPORT</option>
+                <option>SUPPLEMENT REPORT</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>INCIDENT DATE</label>
+                <input type="text" id="reportDate" placeholder="MM/DD/YYYY" />
+              </div>
+              <div class="form-group">
+                <label>INCIDENT TIME</label>
+                <input type="text" id="reportTime" placeholder="HH:MM" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>LOCATION OF INCIDENT</label>
+              <input type="text" id="reportLocation" placeholder="Address or area" />
+            </div>
+            <div class="form-group">
+              <label>SUBJECT / SUSPECT NAME</label>
+              <input type="text" id="reportSubject" placeholder="Full name" />
+            </div>
+            <div class="form-group">
+              <label>CHARGES / OFFENSES</label>
+              <input type="text" id="reportCharges" placeholder="e.g. PC 187, 11377 HS" />
+            </div>
+            <div class="form-group">
+              <label>NARRATIVE</label>
+              <textarea id="reportNarrative" placeholder="Full narrative of the incident..." rows="6"></textarea>
+            </div>
+            <div class="form-group">
+              <label>OFFICER(S) INVOLVED</label>
+              <input type="text" id="reportOfficers" placeholder="Badge # and names" />
+            </div>
+            <div class="form-group">
+              <label>DISPOSITION</label>
+              <select id="reportDisposition">
+                <option>ARREST MADE</option>
+                <option>CITATION ISSUED</option>
+                <option>WARNING ISSUED</option>
+                <option>UNFOUNDED</option>
+                <option>UNDER INVESTIGATION</option>
+                <option>NO ACTION TAKEN</option>
+                <option>REFERRED TO DA</option>
+              </select>
+            </div>
+            <button class="btn-primary" onclick="submitReport()">SUBMIT REPORT</button>
+          </div>
+        </div>
+        <div class="panel-right">
+          <div class="card">
+            <div class="card-header">📋 FILED REPORTS <span id="reportCount" class="badge">0</span></div>
+            <div id="reportsList" class="records-list">
+              <div class="empty-state">No reports filed</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CITATIONS TAB -->
+    <section id="panel-citations" class="panel">
+      <div class="panel-grid">
+        <div class="panel-left">
+          <div class="card">
+            <div class="card-header">🎫 ISSUE CITATION / TICKET</div>
+            <div class="form-group">
+              <label>SUBJECT NAME</label>
+              <input type="text" id="citName" placeholder="Full Name" />
+            </div>
+            <div class="form-group">
+              <label>LICENSE PLATE</label>
+              <input type="text" id="citPlate" placeholder="ABC-1234" style="text-transform:uppercase" />
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>CITATION DATE</label>
+                <input type="text" id="citDate" placeholder="MM/DD/YYYY" />
+              </div>
+              <div class="form-group">
+                <label>TIME</label>
+                <input type="text" id="citTime" placeholder="HH:MM" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>LOCATION</label>
+              <input type="text" id="citLocation" placeholder="Street / Intersection" />
+            </div>
+            <div class="form-group">
+              <label>VIOLATION</label>
+              <select id="citViolation">
+                <option>Speeding</option>
+                <option>Running Red Light</option>
+                <option>Stop Sign Violation</option>
+                <option>Reckless Driving</option>
+                <option>Driving Without License</option>
+                <option>Driving on Suspended License</option>
+                <option>No Insurance</option>
+                <option>Expired Registration</option>
+                <option>Failure to Yield</option>
+                <option>Illegal U-Turn</option>
+                <option>Improper Lane Change</option>
+                <option>DUI / DWI</option>
+                <option>Equipment Violation</option>
+                <option>Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>SPEED / DETAILS</label>
+              <input type="text" id="citSpeed" placeholder="e.g. 75 in a 55 zone" />
+            </div>
+            <div class="form-group">
+              <label>FINE AMOUNT ($)</label>
+              <input type="number" id="citFine" placeholder="0.00" min="0" />
+            </div>
+            <div class="form-group">
+              <label>ISSUING OFFICER</label>
+              <input type="text" id="citOfficer" placeholder="Badge # / Name" />
+            </div>
+            <div class="form-group">
+              <label>NOTES</label>
+              <textarea id="citNotes" placeholder="Additional notes..." rows="2"></textarea>
+            </div>
+            <button class="btn-primary" onclick="issueCitation()">ISSUE CITATION</button>
+          </div>
+        </div>
+        <div class="panel-right">
+          <div class="card">
+            <div class="card-header">🎫 CITATION HISTORY <span id="citCount" class="badge">0</span></div>
+            <div id="citationsList" class="records-list">
+              <div class="empty-state">No citations issued</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WARRANTS TAB -->
+    <section id="panel-warrants" class="panel">
+      <div class="panel-grid">
+        <div class="panel-left">
+          <div class="card">
+            <div class="card-header warn-header">⚠ ISSUE WARRANT</div>
+            <div class="form-group">
+              <label>SUBJECT NAME</label>
+              <input type="text" id="wName" placeholder="Full Name" />
+            </div>
+            <div class="form-group">
+              <label>DATE OF BIRTH</label>
+              <input type="text" id="wDOB" placeholder="MM/DD/YYYY" />
+            </div>
+            <div class="form-group">
+              <label>WARRANT TYPE</label>
+              <select id="wType">
+                <option value="felony">FELONY WARRANT</option>
+                <option value="misdemeanor">MISDEMEANOR WARRANT</option>
+                <option value="arrest">ARREST WARRANT</option>
+                <option value="bench">BENCH WARRANT</option>
+                <option value="parole">PAROLE VIOLATION</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>CHARGES</label>
+              <input type="text" id="wCharges" placeholder="e.g. PC 187 — Murder" />
+            </div>
+            <div class="form-group">
+              <label>DESCRIPTION</label>
+              <textarea id="wDesc" placeholder="Describe the warrant..." rows="3"></textarea>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>ISSUING JUDGE</label>
+                <input type="text" id="wJudge" placeholder="Judge Name" />
+              </div>
+              <div class="form-group">
+                <label>ISSUE DATE</label>
+                <input type="text" id="wDate" placeholder="MM/DD/YYYY" />
+              </div>
+            </div>
+            <button class="btn-danger-full" onclick="issueWarrant()">⚠ ISSUE WARRANT</button>
+          </div>
+        </div>
+        <div class="panel-right">
+          <div class="card">
+            <div class="card-header warn-header">⚠ ACTIVE WARRANTS <span id="warrantCount" class="badge badge-red">0</span></div>
+            <div id="warrantsList" class="records-list">
+              <div class="empty-state">No active warrants</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BOLO TAB -->
+    <section id="panel-bolo" class="panel">
+      <div class="panel-grid">
+        <div class="panel-left">
+          <div class="card">
+            <div class="card-header bolo-header">🚨 ISSUE BOLO ALERT</div>
+            <div class="bolo-alert-banner">BE ON THE LOOKOUT — BROADCAST ALERT</div>
+            <div class="form-group">
+              <label>SUBJECT / VEHICLE DESCRIPTION</label>
+              <input type="text" id="boloSubject" placeholder="Name or description" />
+            </div>
+            <div class="form-group">
+              <label>BOLO TYPE</label>
+              <select id="boloType">
+                <option>SUSPECT BOLO</option>
+                <option>VEHICLE BOLO</option>
+                <option>MISSING PERSON</option>
+                <option>AMBER ALERT</option>
+                <option>SILVER ALERT</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>LAST KNOWN LOCATION</label>
+              <input type="text" id="boloLocation" placeholder="Area / address" />
+            </div>
+            <div class="form-group">
+              <label>DETAILED DESCRIPTION</label>
+              <textarea id="boloDesc" placeholder="Physical description, clothing, vehicle info, direction of travel..." rows="4"></textarea>
+            </div>
+            <div class="form-group">
+              <label>DANGER LEVEL</label>
+              <select id="boloDanger">
+                <option value="low">LOW — No known weapons</option>
+                <option value="medium">MEDIUM — May be armed</option>
+                <option value="high">HIGH — ARMED AND DANGEROUS</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>ISSUING OFFICER</label>
+              <input type="text" id="boloOfficer" placeholder="Badge # / Name" />
+            </div>
+            <button class="btn-danger-full" onclick="issueBOLO()">🚨 BROADCAST BOLO</button>
+          </div>
+        </div>
+        <div class="panel-right">
+          <div class="card">
+            <div class="card-header bolo-header">🚨 ACTIVE BOLOs <span id="boloCount" class="badge badge-red">0</span></div>
+            <div id="boloList" class="records-list">
+              <div class="empty-state">No active BOLOs</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="status-bar">
+    <div class="status-item"><span class="status-dot" id="statusDot"></span><span id="statusText">10-8 AVAILABLE</span></div>
+    <div class="status-item">ENCRYPTION: <span class="green">AES-256 ACTIVE</span></div>
+    <div class="status-item">SESSION: <span id="sessionTimer" class="green">00:00</span></div>
+    <div class="status-item">RECORDS: <span id="dbCount" class="green">0</span></div>
+    <div class="status-item">TERMINAL: <span class="green">MDT-7734-A</span></div>
+  </footer>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
